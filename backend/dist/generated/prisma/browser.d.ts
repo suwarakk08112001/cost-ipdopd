@@ -1,0 +1,13 @@
+import * as Prisma from './internal/prismaNamespaceBrowser.js';
+export { Prisma };
+export * as $Enums from './enums.js';
+export * from './enums.js';
+export type Ovst = Prisma.OvstModel;
+export type Kskdepartment = Prisma.KskdepartmentModel;
+export type VnStat = Prisma.VnStatModel;
+export type RcptPrint = Prisma.RcptPrintModel;
+export type RcptPrintDetail = Prisma.RcptPrintDetailModel;
+export type Pttype = Prisma.PttypeModel;
+export type Ipt = Prisma.IptModel;
+export type Ward = Prisma.WardModel;
+export type AnStat = Prisma.AnStatModel;
