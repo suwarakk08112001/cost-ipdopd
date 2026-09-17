@@ -1,0 +1,711 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+
+model Ovst {
+  hosGuid            String    @id @map("hos_guid") @db.VarChar(38)
+  vn                 String?   @unique(map: "ix_vn_unique") @db.VarChar(13)
+  hn                 String?   @db.VarChar(9)
+  an                 String?   @db.VarChar(9)
+  vstdate            DateTime? @db.Date
+  vsttime            DateTime? @db.Time(0)
+  doctor             String?   @db.VarChar(7)
+  hospmain           String?   @db.VarChar(9)
+  hospsub            String?   @db.VarChar(9)
+  oqueue             Int?
+  ovstist            String?   @db.Char(2)
+  ovstost            String?   @db.VarChar(4)
+  pttype             String?   @db.Char(2)
+  pttypeno           String?   @db.VarChar(50)
+  rfrics             String?   @db.Char(1)
+  rfrilct            String?   @db.VarChar(9)
+  rfrocs             String?   @db.Char(1)
+  rfrolct            String?   @db.VarChar(9)
+  spclty             String?   @db.Char(2)
+  rcptDisease        String?   @map("rcpt_disease") @db.VarChar(100)
+  hcode              String?   @db.VarChar(5)
+  curDep             String?   @map("cur_dep") @db.Char(3)
+  curDepBusy         String?   @map("cur_dep_busy") @db.Char(1)
+  lastDep            String?   @map("last_dep") @db.Char(3)
+  curDepTime         DateTime? @map("cur_dep_time") @db.Time(0)
+  rxQueue            Int?      @map("rx_queue")
+  diagText           String?   @map("diag_text") @db.VarChar(250)
+  ptSubtype          Int?      @map("pt_subtype") @db.TinyInt
+  mainDep            String?   @map("main_dep") @db.Char(3)
+  mainDepQueue       Int?      @map("main_dep_queue")
+  financeSummaryDate DateTime? @map("finance_summary_date") @db.Date
+  visitType          String?   @map("visit_type") @db.Char(1)
+  nodeId             String?   @map("node_id") @db.Char(1)
+  contractId         Int?      @map("contract_id")
+  waiting            String?   @db.Char(1)
+  rfriIcd10          String?   @map("rfri_icd10") @db.VarChar(6)
+  oReferNumber       Int?      @map("o_refer_number")
+  hasInsurance       String?   @map("has_insurance") @db.Char(1)
+  iReferNumber       String?   @map("i_refer_number") @db.VarChar(25)
+  referType          String?   @map("refer_type") @db.Char(1)
+  oReferDep          String?   @map("o_refer_dep") @db.VarChar(5)
+  staff              String?   @db.VarChar(25)
+  commandDoctor      String?   @map("command_doctor") @db.VarChar(6)
+  sendPerson         String?   @map("send_person") @db.VarChar(150)
+  ptPriority         Int?      @map("pt_priority")
+  financeLock        String?   @map("finance_lock") @db.Char(1)
+  oldcode            String?   @db.VarChar(20)
+  signDoctor         String?   @map("sign_doctor") @db.VarChar(10)
+  anonymousVisit     String?   @map("anonymous_visit") @db.Char(1)
+  anonymousVn        String?   @map("anonymous_vn") @db.VarChar(12)
+  ptCapabilityTypeId Int?      @map("pt_capability_type_id")
+  atHospital         String?   @map("at_hospital") @db.Char(1)
+   ovstKey            String?   @map("ovst_key") @db.VarChar(40)
+   vnStat VnStat? @relation("OvstVnStat", fields: [vn], references: [vn], onDelete: NoAction, onUpdate: NoAction)
+  department Kskdepartment? @relation("OvstMainDep", fields: [mainDep], references: [depcode], onDelete: NoAction, onUpdate: NoAction)
+    rcptPrintDetails RcptPrintDetail[] @relation("OvstToRcptPrintDetail")
+     
+  ptType             Pttype?   @relation("OvstToPttype", fields: [pttype], references: [pttype], onDelete: NoAction, onUpdate: NoAction)
+  @@index([an], map: "ix_an")
+  @@index([doctor], map: "ix_doctor")
+  @@index([hcode], map: "ix_hcode")
+  @@index([hn], map: "ix_hn")
+  @@index([hn, vstdate], map: "ix_hn_vstdate")
+  @@index([oReferNumber], map: "ix_o_refer_number")
+  @@index([pttype], map: "ix_pttype")
+  @@index([spclty], map: "ix_spclty")
+  @@index([staff], map: "ix_staff")
+  @@index([vstdate], map: "ix_vstdate")
+  @@index([iReferNumber], map: "ix_i_refer_number")
+  @@index([anonymousVn], map: "ix_anonymous_vn")
+  @@index([vn, anonymousVisit, anonymousVn], map: "ix_vn_anonymous_vs_vn")
+  @@index([vn, vstdate], map: "ix_vn_date")
+  @@index([vstdate, curDep], map: "ix_vstdate_curdep")
+  @@index([anonymousVisit, anonymousVn, vn], map: "ix_vn_anonymous_vs_vn_index")
+  @@map("ovst")
+}
+
+model Kskdepartment {
+  depcode                     String    @id @db.Char(3)
+  department                  String?   @db.VarChar(150)
+  roomno                      String?   @db.VarChar(5)
+  doctorCode                  String?   @map("doctor_code") @db.VarChar(7)
+  onlineTime                  DateTime? @map("online_time")
+  onDesk                      String?   @map("on_desk") @db.Char(1)
+  spclty                      String?   @db.Char(2)
+  screenVisible                String?  @map("screen_visible") @db.Char(1)
+  doctorVisible                 String?  @map("doctor_visible") @db.Char(1)
+  registryVisible                String? @map("registry_visible") @db.Char(1)
+  rxVisible                       String? @map("rx_visible") @db.Char(1)
+  statusOpen                       String? @map("status_open") @db.Char(1)
+  cashierVisible                    String? @map("cashier_visible") @db.Char(1)
+  medicationCheck                    String? @map("medication_check") @db.Char(1)
+  canPrintSticker                     String? @map("can_print_sticker") @db.Char(1)
+  depcodeActive                        String? @map("depcode_active") @db.Char(1)
+  hospitalDepartmentId                  Int?    @map("hospital_department_id")
+  printStickerCheck                      String? @map("print_sticker_check") @db.Char(1)
+  otServicePay                            String? @map("ot_service_pay") @db.Char(1)
+  hosGuid                                  String? @map("hos_guid") @db.VarChar(38)
+  oldcode                                   String? @db.VarChar(25)
+  depConfirmCode                             String? @map("dep_confirm_code") @db.VarChar(10)
+  ipdVisible                                  String? @map("ipd_visible") @db.Char(1)
+  departmentActive                             String? @map("department_active") @db.Char(1)
+  opdFileTracking                               String? @map("opd_file_tracking") @db.Char(1)
+  secondLineText                                 String? @map("second_line_text") @db.VarChar(100)
+  dfPercent                                       Float?  @map("df_percent") @db.Double
+  dfDecPrice                                       String? @map("df_dec_price") @db.Char(1)
+  currentWaitingTime                                Int?   @map("current_waiting_time")
+  autoConfirmMedpay                                  String? @map("auto_confirm_medpay") @db.Char(1)
+  stockDepartmentId                                   Int?   @map("stock_department_id")
+  defaultStockDepartmentId                             Int?   @map("default_stock_department_id")
+  displayOrder                                          Int?   @map("display_order")
+  checkSpcltyWb                                          String? @map("check_spclty_wb") @db.Char(1)
+  referPoint                                              String? @map("refer_point") @db.VarChar(5)
+  empDepId                                                 Int?   @map("emp_dep_id")
+  forceSelectDoctor                                         String? @map("force_select_doctor") @db.Char(1)
+  autoApplyStockDepartment                                   String? @map("auto_apply_stock_department") @db.Char(1)
+  forceSelectClinicDoctor                                     String? @map("force_select_clinic_doctor") @db.Char(1)
+  showAllAdviceItem                                            String? @map("show_all_advice_item") @db.Char(1)
+  showDoctorRegistQueue                                         String? @map("show_doctor_regist_queue") @db.Char(1)
+  opdQsLocationId                                                Int?   @map("opd_qs_location_id")
+  opdQsRoomId                                                     Int?   @map("opd_qs_room_id")
+  displayText                                                      String? @map("display_text") @db.VarChar(250)
+  invNoWarnQty0                                                     String? @map("inv_no_warn_qty0") @db.Char(1)
+  forceDxEntry                                                       String? @map("force_dx_entry") @db.Char(1)
+  forceNhsoAuthenVisit                                                String? @map("force_nhso_authen_visit") @db.Char(1)
+  checkMissmatchSpclty                                                 String? @map("check_missmatch_spclty") @db.Char(1)
+  checkMissmatchDepcode                                                 String? @map("check_missmatch_depcode") @db.Char(1)
+  otServiceIcode                                                         String? @map("ot_service_icode") @db.VarChar(7)
+  forceScreenSmoking                                                      String? @map("force_screen_smoking") @db.Char(1)
+  phoneNumber                                                              String? @map("phone_number") @db.VarChar(50)
+  forceDoctorPeEntry                                                        String? @map("force_doctor_pe_entry") @db.Char(1)
+  showNhsoFeeSchedule                                                        String? @map("show_nhso_fee_schedule") @db.Char(1)
+  showNhsoConfirmService                                                      String? @map("show_nhso_confirm_service") @db.Char(1)
+  claimNhsoFs104                                                               String? @map("claim_nhso_fs_104") @db.Char(1)
+  sendMophDental                                                                String? @map("send_moph_dental") @db.Char(1)
+  homeVisitAiAnalyze                                                             String? @map("home_visit_ai_analyze") @db.Char(1)
+
+  ovsts Ovst[] @relation("OvstMainDep")
+
+  @@index([department], map: "ix_department")
+  @@index([onlineTime], map: "ix_online_time")
+  @@index([hosGuid], map: "ix_hos_guid")
+  @@index([departmentActive], map: "ix_department_active")
+  @@index([empDepId], map: "ix_emp_dep_id")
+  @@map("kskdepartment")
+}
+
+model VnStat {
+  vn                String    @id @db.VarChar(13)
+  hn                String?   @db.VarChar(9)
+  pdx               String?   @db.VarChar(6)
+  gr504             Int?      @db.SmallInt
+  lastvisit         Int?      @db.SmallInt
+  accidentCode      String?   @map("accident_code") @db.VarChar(6)
+  dxDoctor          String?   @map("dx_doctor") @db.VarChar(7)
+  dx0               String?   @db.VarChar(6)
+  dx1               String?   @db.VarChar(6)
+  dx2               String?   @db.VarChar(6)
+  dx3               String?   @db.VarChar(6)
+  dx4               String?   @db.VarChar(6)
+  dx5               String?   @db.VarChar(6)
+  sex               String?   @db.Char(1)
+  ageY              Int?      @map("age_y") @db.SmallInt
+  ageM              Int?      @map("age_m") @db.SmallInt
+  ageD              Int?      @map("age_d") @db.SmallInt
+  aid               String?   @db.VarChar(6)
+  moopart           String?   @db.VarChar(5)
+  countInMonth      Int?      @map("count_in_month") @db.SmallInt
+  countInYear       Int?      @map("count_in_year") @db.SmallInt
+  pttype            String?   @db.Char(2)
+  income            Float?    @db.Double
+  paidMoney         Float?    @map("paid_money") @db.Double
+  remainMoney       Float?    @map("remain_money") @db.Double
+  ucMoney           Float?    @map("uc_money") @db.Double
+  itemMoney         Float?    @map("item_money") @db.Double
+  dba               Int?      @db.TinyInt
+  spclty            String?   @db.Char(2)
+  vstdate           DateTime? @db.Date
+  op0               String?   @db.VarChar(6)
+  op1               String?   @db.VarChar(6)
+  op2               String?   @db.VarChar(6)
+  op3               String?   @db.VarChar(6)
+  op4               String?   @db.VarChar(6)
+  op5               String?   @db.VarChar(6)
+  rcpNo             String?   @map("rcp_no") @db.VarChar(10)
+  printCount        Int?      @map("print_count") @db.TinyInt
+  printDone         String?   @map("print_done") @db.Char(1)
+  pttypeInRegion    String?   @map("pttype_in_region") @db.Char(1)
+  pttypeInChwpart   String?   @map("pttype_in_chwpart") @db.Char(1)
+  pcode             String?   @db.Char(2)
+  hcode             String?   @db.VarChar(5)
+  inc01             Float?    @db.Double
+  inc02             Float?    @db.Double
+  inc03             Float?    @db.Double
+  inc04             Float?    @db.Double
+  inc05             Float?    @db.Double
+  inc06             Float?    @db.Double
+  inc07             Float?    @db.Double
+  inc08             Float?    @db.Double
+  inc09             Float?    @db.Double
+  inc10             Float?    @db.Double
+  inc11             Float?    @db.Double
+  inc12             Float?    @db.Double
+  inc13             Float?    @db.Double
+  inc14             Float?    @db.Double
+  inc15             Float?    @db.Double
+  inc16             Float?    @db.Double
+  hospmain          String?   @db.VarChar(9)
+  hospsub           String?   @db.VarChar(9)
+  pttypeno          String?   @db.VarChar(20)
+  pttypeExpire      DateTime? @map("pttype_expire") @db.Date
+  cid               String?   @db.VarChar(13)
+  mainPdx           String?   @map("main_pdx") @db.Char(3)
+  inc17             Float?    @db.Double
+  incDrug           Float?    @map("inc_drug") @db.Double
+  incNondrug        Float?    @map("inc_nondrug") @db.Double
+  ptSubtype         Int?      @map("pt_subtype") @db.TinyInt
+  rcpnoList         String?   @map("rcpno_list") @db.VarChar(25)
+  ym                String?   @db.VarChar(7)
+  nodeId            String?   @map("node_id") @db.Char(1)
+  illVisit          String?   @map("ill_visit") @db.Char(1)
+  countInDay        Int?      @map("count_in_day") @db.TinyInt
+  pttypeBegin       DateTime? @map("pttype_begin") @db.Date
+  lastvisitHour     Int?      @map("lastvisit_hour")
+  rcptMoney         Float?    @map("rcpt_money") @db.Double
+  discountMoney     Float?    @map("discount_money") @db.Double
+  oldDiagnosis      String?   @map("old_diagnosis") @db.Char(1)
+  debtIdList        String?   @map("debt_id_list") @db.VarChar(50)
+  vnGuid            String?   @map("vn_guid") @db.VarChar(38)
+  lastvisitVn       String?   @map("lastvisit_vn") @db.VarChar(13)
+  hosGuid           String?   @map("hos_guid") @db.VarChar(38)
+  rxLicenseNo       String?   @map("rx_license_no") @db.VarChar(15)
+  labPaidOk         String?   @map("lab_paid_ok") @db.Char(1)
+  xrayPaidOk        String?   @map("xray_paid_ok") @db.Char(1)
+
+  ovst Ovst? @relation("OvstVnStat")
+
+  @@index([hn], map: "hn")
+  @@index([hospmain], map: "hospmain")
+  @@index([hospsub], map: "hospsub")
+  @@index([cid], map: "cid")
+  @@index([pcode], map: "pcode")
+  @@index([pttype], map: "pttype")
+  @@index([vstdate], map: "vstdate")
+  @@index([ym], map: "ym")
+  @@index([hosGuid], map: "ix_hos_guid")
+  @@index([hn, vn], map: "ix_hn_vn")
+  @@map("vn_stat")
+}
+
+model RcptPrint {
+  financeNumber         String    @id @map("finance_number") @db.VarChar(7)
+  rcpno                 String?   @unique(map: "rcpno_unique") @db.VarChar(20)
+  billAmount            Float?    @map("bill_amount") @db.Double
+  billDateTime          DateTime? @map("bill_date_time")
+  user                  String?   @db.VarChar(15)
+  hn                    String?   @db.VarChar(9)
+  vn                    String?   @db.VarChar(13)
+  status                String?   @db.VarChar(5)
+  department            String?   @db.Char(3)
+  pttype                String?   @db.Char(2)
+  remainMoney           Float?    @map("remain_money") @db.Double
+  computer              String?   @db.VarChar(25)
+  creditCard            String?   @map("credit_card") @db.Char(1)
+  discount              Float?    @db.Double
+  bookNumber            Int?      @map("book_number")
+  billNumber            Int?      @map("bill_number")
+  accountConfirm        String?   @map("account_confirm") @db.Char(1)
+  totalAmount           Float?    @map("total_amount") @db.Double
+  manualDiscount        Float?    @map("manual_discount") @db.Double
+  financePayTypeId      Int?      @map("finance_pay_type_id")
+  creditCardAmount      Float?    @map("credit_card_amount") @db.Double
+  creditCardId          Int?      @map("credit_card_id")
+  creditCardNo          String?   @map("credit_card_no") @db.VarChar(50)
+  creditCardOwner       String?   @map("credit_card_owner") @db.VarChar(200)
+  hosGuid               String?   @map("hos_guid") @db.VarChar(38)
+  creditTransfer        String?   @map("credit_transfer") @db.Char(1)
+  hosGuidExt            String?   @map("hos_guid_ext") @db.VarChar(64)
+  billDate              DateTime? @map("bill_date") @db.Date
+  billStaff             String?   @map("bill_staff") @db.VarChar(50)
+  cashAmount            Float?    @map("cash_amount") @db.Double
+  depositDebitAmount    Float?    @map("deposit_debit_amount") @db.Double
+  receiveCashAmount     Float?    @map("receive_cash_amount") @db.Double
+  moneyTransmit         String?   @map("money_transmit") @db.Char(1)
+  officerId             Int?      @map("officer_id")
+  rcptPrintTransHeadId  Int?      @map("rcpt_print_trans_head_id")
+  billTime              DateTime? @map("bill_time") @db.Time(0)
+  couponAmount          Float?    @map("coupon_amount") @db.Double
+  couponNo              String?   @map("coupon_no") @db.VarChar(50)
+  specialDiscountAmount Float?    @map("special_discount_amount") @db.Double
+  kioskPay              String?   @map("kiosk_pay") @db.Char(1)
+  kioskRefNo            String?   @map("kiosk_ref_no") @db.VarChar(50)
+  changeMoney           Float?    @map("change_money") @db.Double
+  hospitalDepartmentId  Int?      @map("hospital_department_id")
+  qrAmount              Float?    @map("qr_amount") @db.Double
+  qrRefCode             String?   @map("qr_ref_code") @db.VarChar(200)
+  rcptDepositTypeId     Int?      @map("rcpt_deposit_type_id")
+  ktbHwAmount           Float?    @map("ktb_hw_amount") @db.Double
+
+  details RcptPrintDetail[] @relation("RcptPrintToDetail")
+
+  @@index([hn], map: "hn")
+  @@index([vn], map: "vn")
+  @@index([bookNumber], map: "ix_booknumber")
+  @@index([billNumber], map: "ix_billnumber")
+  @@index([pttype], map: "ix_pttype")
+  @@index([billDateTime], map: "ix_bill_date_time")
+  @@index([hosGuid], map: "ix_hos_guid")
+  @@index([user, billDateTime], map: "ix_user_bill_datetime")
+  @@index([hosGuidExt], map: "ix_hos_guid_ext")
+  @@index([billDate], map: "ix_bill_date")
+  @@index([rcptPrintTransHeadId], map: "ix_trans_id")
+  @@index([billDateTime, user], map: "ix_user_bill_datetime_index")
+  @@map("rcpt_print")
+}
+
+model RcptPrintDetail {
+  financeNumber   String  @map("finance_number") @db.VarChar(7)
+  rcpno           String? @db.VarChar(20)
+  vn              String? @db.VarChar(13)
+  income          String  @db.Char(2)
+  paidst          String  @db.Char(2)
+  rcptamt         Float?  @db.Double
+  discount        Float?  @db.Double
+  totalAmount     Float?  @map("total_amount") @db.Double
+  hosGuid         String? @map("hos_guid") @db.VarChar(38)
+  hosGuidExt      String? @map("hos_guid_ext") @db.VarChar(64)
+  specialDiscount Float?  @map("special_discount") @db.Double
+
+  ovst      Ovst?      @relation("OvstToRcptPrintDetail", fields: [vn], references: [vn], onDelete: NoAction, onUpdate: NoAction)
+  rcptPrint RcptPrint? @relation("RcptPrintToDetail", fields: [rcpno], references: [rcpno], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([financeNumber, income, paidst])
+  @@index([financeNumber], map: "finance_number")
+  @@index([income], map: "income")
+  @@index([rcpno], map: "rcpno")
+  @@index([vn], map: "vn")
+  @@index([financeNumber, income], map: "ix_fn_income")
+  @@index([hosGuid], map: "ix_hos_guid")
+  @@index([hosGuidExt], map: "ix_hos_guid_ext")
+  @@map("rcpt_print_detail")
+}
+
+model Pttype {
+  pttype                    String   @id @db.Char(2)
+  name                      String?  @db.VarChar(250)
+  editmask                  String?  @db.VarChar(100)
+  isuse                     String?  @db.Char(1)
+  pcode                     String?  @db.Char(2)
+  requirecode               String?  @db.Char(1)
+  doctorFee                 String?  @map("doctor_fee") @db.Char(1)
+  feeCode                   String?  @map("fee_code") @db.VarChar(7)
+  discount                  Int?
+  contract                  String?  @db.Char(1)
+  paidst                    String?  @db.Char(2)
+  inRegion                  String?  @map("in_region") @db.Char(1)
+  uc                        String?  @db.Char(1)
+  requireHcode              String?  @map("require_hcode") @db.Char(1)
+  oldcode                   String?  @db.VarChar(5)
+  feeCode2                  String?  @map("fee_code2") @db.VarChar(7)
+  priceType                 Int?     @map("price_type")
+  debtor                    String?  @db.Char(1)
+  noexpire                  String?  @db.Char(1)
+  hipdataCode               String?  @map("hipdata_code") @db.VarChar(6)
+  minAge                    Int?     @map("min_age")
+  maxAge                    Int?     @map("max_age")
+  billSss                   String?  @map("bill_sss") @db.Char(1)
+  billType                  Int?     @map("bill_type")
+  hipdataPttype             String?  @map("hipdata_pttype") @db.Char(3)
+  useContractId             String?  @map("use_contract_id") @db.Char(1)
+  yearlyCharge              String?  @map("yearly_charge") @db.Char(1)
+  yearlyChargeIcode1        String?  @map("yearly_charge_icode1") @db.VarChar(7)
+  yearlyChargeIcode2        String?  @map("yearly_charge_icode2") @db.VarChar(7)
+  regionType                Int?     @map("region_type")
+  pttypeGroup1              String?  @map("pttype_group1") @db.Char(3)
+  pttypeGroup2              String?  @map("pttype_group2") @db.Char(3)
+  pttypeGuid                String?  @map("pttype_guid") @db.VarChar(38)
+  maxDebtMoney              Float?   @map("max_debt_money") @db.Double
+  allowFinanceEdit          String?  @map("allow_finance_edit") @db.Char(1)
+  printCsmbStatement        String?  @map("print_csmb_statement") @db.Char(1)
+  pttypeInformation         String?  @map("pttype_information") @db.LongText
+  feeCodePaidst             String?  @map("fee_code_paidst") @db.Char(2)
+  feeCode2Paidst            String?  @map("fee_code2_paidst") @db.Char(2)
+  debtDueDay                Int?     @map("debt_due_day")
+  rxPayDebitTr              String?  @map("rx_pay_debit_tr") @db.Char(1)
+  separateRcpno             String?  @map("separate_rcpno") @db.Char(1)
+  rcpBookno                 Int?     @map("rcp_bookno")
+  separateDebtId            String?  @map("separate_debt_id") @db.Char(1)
+  admitFeeCode              String?  @map("admit_fee_code") @db.VarChar(7)
+  usePackage                String?  @map("use_package") @db.Char(1)
+  chargeDfPerday            String?  @map("charge_df_perday") @db.Char(1)
+  nhsoCode                  String?  @map("nhso_code") @db.Char(2)
+  ipdHourCut                Int?     @map("ipd_hour_cut")
+  pttypeSppId               Int?     @map("pttype_spp_id")
+  printPrescNed             String?  @map("print_presc_ned") @db.Char(1)
+  hosGuid                   String?  @map("hos_guid") @db.VarChar(38)
+  sksBenefitPlanTypeId      Int?     @map("sks_benefit_plan_type_id")
+  pttypeStdCode             String?  @map("pttype_std_code") @db.Char(4)
+  exportEclaim              String?  @map("export_eclaim") @db.Char(1)
+  roundMoney                String?  @map("round_money") @db.Char(1)
+  pttypePricePolicyTypeId   Int?     @map("pttype_price_policy_type_id")
+  empPrivilege              String?  @map("emp_privilege") @db.Char(1)
+  isPttypePlan              String?  @map("is_pttype_plan") @db.Char(1)
+  financeRoundMoney         String?  @map("finance_round_money") @db.Char(1)
+  empFinancial              String?  @map("emp_financial") @db.Char(1)
+  pttypePriceGroupId        Int?     @map("pttype_price_group_id")
+  calcDiscount              String?  @map("calc_discount") @db.Char(1)
+  debtFinanceLimit          Float?   @map("debt_finance_limit") @db.Double
+  debtFinancePttype         String?  @map("debt_finance_pttype") @db.Char(2)
+  opbkkTypeCode             String?  @map("opbkk_type_code") @db.VarChar(2)
+  ipdBedcharge24            String?  @map("ipd_bedcharge_24") @db.Char(1)
+  nhsoSubinscl              String?  @map("nhso_subinscl") @db.VarChar(3)
+  grouperVersion            Int?     @map("grouper_version")
+  rxQueueGroupId            Int?     @map("rx_queue_group_id")
+  incRoundMoney             String?  @map("inc_round_money") @db.Char(1)
+  hospmainList              String?  @map("hospmain_list") @db.VarChar(100)
+  grouperRelease            String?  @map("grouper_release") @db.VarChar(5)
+  checkNhsoAuth             String?  @map("check_nhso_auth") @db.Char(1)
+  pttypeUppTypeId           Int?     @map("pttype_upp_type_id")
+  defaultRequestFunds       String?  @map("default_request_funds") @db.Char(1)
+
+  ovsts Ovst[] @relation("OvstToPttype")
+
+  @@index([name], map: "name")
+  @@index([hipdataCode], map: "ix_ix_hipdata_code")
+  @@index([pcode], map: "ix_pcode")
+  @@index([pttypeSppId], map: "ix_pttype_spp_id")
+  @@index([pttypeGuid], map: "ix_pttype_guid")
+  @@index([nhsoCode], map: "ix_nhso_code")
+  @@index([isuse], map: "ix_isuse")
+  @@index([nhsoSubinscl], map: "ix_nhso_subinscl")
+  @@map("pttype")
+}
+
+model Ipt {
+  an                      String    @id @db.VarChar(9)
+  admdoctor               String?   @db.VarChar(7)
+  dchdate                 DateTime? @db.Date
+  dchstts                 String?   @db.Char(2)
+  dchtime                 DateTime? @db.Time(0)
+  dchtype                 String?   @db.Char(2)
+  dthdiagdct              String?   @db.VarChar(7)
+  hn                      String?   @db.VarChar(9)
+  ivstist                 String?   @db.Char(2)
+  ivstost                 String?   @db.VarChar(4)
+  lockdx                  Int?      @db.TinyInt
+  prediag                 String?   @db.VarChar(250)
+  pttype                  String?   @db.Char(2)
+  regdate                 DateTime? @db.Date
+  regtime                 DateTime? @db.Time(0)
+  rfrics                  String?   @db.Char(1)
+  rfrilct                 String?   @db.VarChar(9)
+  rfrocs                  String?   @db.Char(1)
+  rfrolct                 String?   @db.VarChar(9)
+  spclty                  String?   @db.Char(2)
+  vn                      String?   @db.VarChar(13)
+  ward                    String?   @db.VarChar(4)
+  rcptDisease             String?   @map("rcpt_disease") @db.VarChar(100)
+  dchDoctor               String?   @map("dch_doctor") @db.VarChar(7)
+  iptType                 Int?      @map("ipt_type") @db.TinyInt
+  irefType                String?   @map("iref_type") @db.VarChar(4)
+  ipacc                   Int?
+  actMoneyLimit           Float?    @map("act_money_limit") @db.Double
+  drg                     String?   @db.VarChar(5)
+  mdc                     String?   @db.Char(2)
+  rw                      Float?    @db.Double
+  wtlos                   Float?    @db.Double
+  ot                      Int?
+  result                  String?   @db.Char(1)
+  gravidity               Int?      @db.TinyInt
+  parity                  Int?      @db.TinyInt
+  livingChildren          Int?      @map("living_children") @db.TinyInt
+  rxdoctor                String?   @db.VarChar(7)
+  staff                   String?   @db.VarChar(25)
+  bw                      Int?
+  firstWard               String?   @map("first_ward") @db.VarChar(4)
+  referOutNumber          String?   @map("refer_out_number") @db.VarChar(15)
+  inchargeDoctor          String?   @map("incharge_doctor") @db.VarChar(7)
+  anGuid                  String?   @map("an_guid") @db.VarChar(38)
+  anLock                  String?   @map("an_lock") @db.Char(1)
+  ergent                  String?   @db.Char(1)
+  chartState              String?   @map("chart_state") @db.Char(1)
+  receiveChartDateTime    DateTime? @map("receive_chart_date_time")
+  receiveChartStaff       String?   @map("receive_chart_staff") @db.VarChar(25)
+  receiveChartNote        String?   @map("receive_chart_note") @db.VarChar(100)
+  adjrw                   Float?    @db.Double
+  iptSpclty               String?   @map("ipt_spclty") @db.Char(2)
+  financeLock             String?   @map("finance_lock") @db.Char(1)
+  lastCheckAutoincome     DateTime? @map("last_check_autoincome")
+  admitFeeGuid            String?   @map("admit_fee_guid") @db.VarChar(38)
+  leaveHomeDay            Int?      @map("leave_home_day")
+  operationStatus         String?   @map("operation_status") @db.Char(1)
+  financeSummaryDate      DateTime? @map("finance_summary_date") @db.Date
+  estimateDischargeDate   DateTime? @map("estimate_discharge_date") @db.Date
+  oldCauseRevisit         String?   @map("old_cause_revisit") @db.Char(1)
+  financeTransfer         String?   @map("finance_transfer") @db.Char(1)
+  provisionDx             String?   @map("provision_dx") @db.VarChar(200)
+  dwHhcListId             Int?      @map("dw_hhc_list_id")
+  hosGuid                 String?   @map("hos_guid") @db.VarChar(38)
+  hosGuidExt              String?   @map("hos_guid_ext") @db.VarChar(64)
+  bodyHeight              Int?      @map("body_height")
+  updateDatetime          DateTime? @map("update_datetime")
+  curDepCode              String?   @map("cur_dep_code") @db.Char(3)
+  financeStatusFlag       Int?      @map("finance_status_flag")
+  iptAdmitTypeId          Int?      @map("ipt_admit_type_id")
+  noVisit                 String?   @map("no_visit") @db.Char(1)
+  noFood                  String?   @map("no_food") @db.Char(1)
+  confirmDischarge        String?   @map("confirm_discharge") @db.Char(1)
+  grouperWarn             Int?      @map("grouper_warn")
+  grouperErr              Int?      @map("grouper_err")
+  grouperVersion          String?   @map("grouper_version") @db.VarChar(15)
+  labStatus               String?   @map("lab_status") @db.Char(1)
+  xrayStatus              String?   @map("xray_status") @db.Char(1)
+  grouperActlos           Int?      @map("grouper_actlos")
+  autoChargeAmount        Float?    @map("auto_charge_amount") @db.Double
+  provisionDxIcd          String?   @map("provision_dx_icd") @db.VarChar(9)
+  iptCauseTypeId          Int?      @map("ipt_cause_type_id")
+  iptSevereTypeId         Int?      @map("ipt_severe_type_id")
+  iptCauseTypeNote        String?   @map("ipt_cause_type_note") @db.VarChar(150)
+  followup                String?   @db.Char(1)
+  dchSevereTypeId         Int?      @map("dch_severe_type_id")
+  opdFinanceWaitTr        Float?    @map("opd_finance_wait_tr") @db.Double
+  homeLeaveStatus         String?   @map("home_leave_status") @db.Char(1)
+  grouperAdjrwPrice       Float?    @map("grouper_adjrw_price") @db.Double
+  reimbursePrice          Float?    @map("reimburse_price") @db.Double
+  err                     Int?
+  warn                    Int?
+  oldcode                 String?   @db.VarChar(20)
+  dataOk                  String?   @map("data_ok") @db.Char(1)
+  dataExpDate             DateTime? @map("data_exp_date") @db.Date
+  iptSummaryStatusId      Int?      @map("ipt_summary_status_id")
+  noChargeRoom            String?   @map("no_charge_room") @db.Char(1)
+  rxHomeMed               String?   @map("rx_home_med") @db.Char(1)
+  hhcHospcode             String?   @map("hhc_hospcode") @db.VarChar(9)
+  operationStatusId       Int?      @map("operation_status_id")
+  ipdNurseEvalRangeCode   String?   @map("ipd_nurse_eval_range_code") @db.Char(2)
+  planAdmit               String?   @map("plan_admit") @db.Char(1)
+
+  wardInfo Ward?   @relation("IptToWard", fields: [ward], references: [ward], onDelete: NoAction, onUpdate: NoAction)
+  anStat   AnStat? @relation("IptToAnStat")
+
+  @@index([admdoctor], map: "admdoctor")
+  @@index([dchdate], map: "dchdate")
+  @@index([dchstts], map: "dchstts")
+  @@index([dchstts, ward], map: "dchstts_ward")
+  @@index([hn], map: "hn")
+  @@index([hn, dchdate, dchstts], map: "hn_dchdate_dchstts")
+  @@index([iptType], map: "ipt_type")
+  @@index([pttype], map: "pttype")
+  @@index([regdate], map: "regdate")
+  @@index([regtime], map: "regtime")
+  @@index([spclty], map: "spclty")
+  @@index([vn], map: "vn")
+  @@index([ward], map: "ward")
+  @@index([anGuid], map: "ix_an_guid")
+  @@index([hosGuidExt], map: "ix_hos_guid_ext")
+  @@index([confirmDischarge], map: "ix_confirm_discharge")
+  @@index([dchdate, dchstts, hn], map: "ix_hn_dchdate_dchstts")
+  @@index([an, hn], map: "ix_an_hn")
+  @@index([dataOk, dataExpDate], map: "ix_data_ok_date")
+  @@index([dataOk, dchdate], map: "ix_data_ok_dchdate")
+  @@index([ward, dchstts], map: "ix_dchstts_ward")
+  @@map("ipt")
+}
+
+model Ward {
+  ward                  String  @id @db.VarChar(4)
+  name                  String? @db.VarChar(250)
+  oldCode               String? @map("old_code") @db.VarChar(15)
+  spclty                String? @db.Char(2)
+  bedcount              Int?
+  shortname             String? @db.VarChar(20)
+  sssCode               String? @map("sss_code") @db.VarChar(10)
+  hosGuid               String? @map("hos_guid") @db.VarChar(38)
+  wardExportCode        String? @map("ward_export_code") @db.VarChar(50)
+  wardActive            String? @map("ward_active") @db.Char(1)
+  ipdRxShiftTypeId      Int?    @map("ipd_rx_shift_type_id")
+  selectBednoFromLayout String? @map("select_bedno_from_layout") @db.Char(1)
+  ipKey                 String? @map("ip_key") @db.VarChar(50)
+  strictAccess          String? @map("strict_access") @db.Char(1)
+  lockBedcount          String? @map("lock_bedcount") @db.Char(1)
+  realBedcount          Int?    @map("real_bedcount")
+
+  ipts Ipt[] @relation("IptToWard")
+
+  @@index([name], map: "name")
+  @@index([hosGuid], map: "ix_hos_guid")
+  @@index([oldCode], map: "ix_old_code")
+  @@map("ward")
+}
+
+model AnStat {
+  an                  String    @id @db.VarChar(9)
+  pdx                 String?   @db.VarChar(6)
+  hn                  String?   @db.VarChar(9)
+  dx0                 String?   @db.VarChar(6)
+  dx1                 String?   @db.VarChar(6)
+  dx2                 String?   @db.VarChar(6)
+  dx3                 String?   @db.VarChar(6)
+  dx4                 String?   @db.VarChar(6)
+  dx5                 String?   @db.VarChar(6)
+  sex                 String?   @db.Char(1)
+  ageY                Int?      @map("age_y") @db.TinyInt
+  ageM                Int?      @map("age_m") @db.TinyInt
+  ageD                Int?      @map("age_d") @db.TinyInt
+  aid                 String?   @db.VarChar(6)
+  countInMonth        Int?      @map("count_in_month") @db.TinyInt
+  countInYear         Int?      @map("count_in_year") @db.TinyInt
+  pttype              String?   @db.Char(2)
+  income              Float?    @db.Double
+  lastvisit           Int?
+  regdate             DateTime? @db.Date
+  dchdate             DateTime? @db.Date
+  admdate             Int?
+  drg                 String?   @db.VarChar(6)
+  rw                  Float?    @db.Double
+  los                 Float?    @db.Double
+  ot                  Float?    @db.Double
+  spclty              String?   @db.Char(2)
+  ward                String?   @db.VarChar(4)
+  printDone           String?   @map("print_done") @db.Char(1)
+  printCount          Int?      @map("print_count") @db.TinyInt
+  paidMoney           Float?    @map("paid_money") @db.Double
+  remainMoney         Float?    @map("remain_money") @db.Double
+  ucMoney             Float?    @map("uc_money") @db.Double
+  itemMoney           Float?    @map("item_money") @db.Double
+  pttypeInRegion      String?   @map("pttype_in_region") @db.Char(1)
+  pcode               String?   @db.Char(2)
+  op0                 String?   @db.VarChar(6)
+  op1                 String?   @db.VarChar(6)
+  op2                 String?   @db.VarChar(6)
+  op3                 String?   @db.VarChar(6)
+  op4                 String?   @db.VarChar(6)
+  op5                 String?   @db.VarChar(6)
+  op6                 String?   @db.VarChar(6)
+  inc01               Float?    @db.Double
+  inc02               Float?    @db.Double
+  inc03               Float?    @db.Double
+  inc04               Float?    @db.Double
+  inc05               Float?    @db.Double
+  inc06               Float?    @db.Double
+  inc07               Float?    @db.Double
+  inc08               Float?    @db.Double
+  inc09               Float?    @db.Double
+  inc10               Float?    @db.Double
+  inc11               Float?    @db.Double
+  inc12               Float?    @db.Double
+  inc13               Float?    @db.Double
+  inc14               Float?    @db.Double
+  inc15               Float?    @db.Double
+  inc16               Float?    @db.Double
+  dxDoctor            String?   @map("dx_doctor") @db.VarChar(7)
+  vn                  String?   @db.VarChar(13)
+  inc17               Float?    @db.Double
+  rcpnoList           String?   @map("rcpno_list") @db.VarChar(100)
+  pttypeno            String?   @db.VarChar(25)
+  moopart             String?   @db.Char(3)
+  gr504               Int?      @db.SmallInt
+  accidentCode        String?   @map("accident_code") @db.VarChar(6)
+  lastvisitHour       Int?      @map("lastvisit_hour")
+  rcptMoney           Float?    @map("rcpt_money") @db.Double
+  discountMoney       Float?    @map("discount_money") @db.Double
+  oldDiagnosis        String?   @map("old_diagnosis") @db.Char(1)
+  debtIdList          String?   @map("debt_id_list") @db.VarChar(50)
+  admitHour           Int?      @map("admit_hour")
+  anGuid              String?   @map("an_guid") @db.VarChar(38)
+  admdateCut24        Int?      @map("admdate_cut24")
+  hosGuid             String?   @map("hos_guid") @db.VarChar(38)
+  debtMoney           Float?    @map("debt_money") @db.Double
+  opdWaitMoney        Float?    @map("opd_wait_money") @db.Double
+  prescNedIncomplete  String?   @map("presc_ned_incomplete") @db.Char(1)
+  lastSyncDatetime    DateTime? @map("last_sync_datetime")
+  rxLicenseNo         String?   @map("rx_license_no") @db.VarChar(15)
+  hasRefillMedplan    String?   @map("has_refill_medplan") @db.Char(1)
+  hasMedRecon         String?   @map("has_med_recon") @db.Char(1)
+  pttypeListText      String?   @map("pttype_list_text") @db.VarChar(200)
+  diagTextList        String?   @map("diag_text_list") @db.VarChar(200)
+  lastBps             Int?      @map("last_bps")
+  lastBpd             Int?      @map("last_bpd")
+  lastTemperature     Float?    @map("last_temperature") @db.Double
+  lastSosScore        Int?      @map("last_sos_score")
+  iclaimListText      String?   @map("iclaim_list_text") @db.VarChar(50)
+
+  ipt Ipt @relation("IptToAnStat", fields: [an], references: [an], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([dchdate], map: "dchdate")
+  @@index([pcode], map: "pcode")
+  @@index([pttype], map: "pttype")
+  @@index([regdate], map: "ix_regdate")
+  @@index([hn, regdate], map: "ix_hn_regdate")
+  @@index([hosGuid], map: "ix_hos_guid")
+  @@index([regdate, hn], map: "ix_hn_regdate_index")
+  @@map("an_stat")
+}
+
