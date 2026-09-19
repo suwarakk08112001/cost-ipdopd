@@ -220,7 +220,9 @@
           </div>
         </div>
         <div class="chart-box">
-          <canvas ref="canvasRef"></canvas>
+          <div class="chart-scroll">
+            <canvas ref="canvasRef"></canvas>
+          </div>
         </div>
       </section>
 
@@ -1313,9 +1315,19 @@ onMounted(async () => {
   padding: 22px 24px 44px;
   max-width: 1320px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+.dash *, .dash *::before, .dash *::after { box-sizing: border-box; }
+@media (max-width: 900px) {
+  .dash { padding: 18px 16px 36px; }
 }
 @media (max-width: 640px) {
   .dash { padding: 14px 12px 32px; }
+}
+@media (max-width: 360px) {
+  .dash { padding: 12px 8px 28px; }
 }
 .dash :deep(.q-field__control), .dash :deep(input) { font-family: inherit; }
 .mono, .vital__value, .status-updated, .filter-input :deep(input) {
@@ -1343,8 +1355,9 @@ onMounted(async () => {
   background: var(--primary);
   border-radius: 2px;
 }
+.dash-header__main { flex: 1 1 260px; min-width: 0; }
 .dash-header__id {
-  display: flex; align-items: center; gap: 7px;
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
   font-size: 12.5px; color: var(--ink-soft); margin-bottom: 8px;
 }
 .dash-header h1 { margin: 0 0 5px; font-size: 23px; font-weight: 700; color: var(--ink); }
@@ -1352,6 +1365,7 @@ onMounted(async () => {
 .dash-header__status {
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
   font-size: 12px;
+  flex: 0 1 auto;
   max-width: 100%;
   word-break: break-word;
 }
@@ -1371,6 +1385,10 @@ onMounted(async () => {
   .dash-header { padding: 18px 16px 16px 20px; align-items: flex-start; }
   .dash-header__status { align-items: flex-start; }
   .dash-header h1 { font-size: 19px; }
+}
+@media (max-width: 360px) {
+  .dash-header h1 { font-size: 17px; }
+  .dash-header p { font-size: 12px; }
 }
 
 .filter-bar {
@@ -1423,25 +1441,47 @@ onMounted(async () => {
 .action-btn--dropdown:hover :deep(.q-btn__content) { color: var(--primary); }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 900px) {
+  .filter-bar { gap: 12px 14px; }
+}
 @media (max-width: 640px) {
   .filter-bar { gap: 10px 12px; }
   .filter-divider { display: none; }
   .filter-input { width: 128px; }
   .filter-input--time { width: 108px; }
-  .action-group, .preset-group { width: 100%; justify-content: flex-start; }
+  .preset-group { width: 100%; justify-content: flex-start; }
   .preset-btn, .action-btn { padding: 9px 14px; font-size: 13px; }
   .filter-input--time :deep(.q-btn) { min-height: 34px; min-width: 34px; }
   .filter-input--time :deep(.q-btn .q-icon) { font-size: 18px; }
+
+  /* Refresh + CSV/Excel/PDF exports: an even 2x2 grid reads far better on a
+     narrow screen than four unevenly-sized buttons wrapping mid-row. */
+  .action-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .action-group .action-btn { width: 100%; justify-content: center; }
+  .action-group .action-btn--dropdown { width: 100%; }
+  .action-group .action-btn--dropdown :deep(.q-btn__content) {
+    justify-content: center; width: 100%;
+  }
 }
 @media (max-width: 480px) {
   .filter-field { flex: 1 1 calc(50% - 8px); min-width: 0; }
   .filter-input, .filter-input--time { width: 100%; }
+  .action-group { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 360px) {
+  .action-group { grid-template-columns: 1fr; }
 }
 
 .tab-strip {
   display: flex; gap: 4px; overflow-x: auto; margin-bottom: 14px;
   border-bottom: 1px solid var(--line);
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 .tab {
   flex-shrink: 0;
@@ -1504,12 +1544,19 @@ onMounted(async () => {
 .panel-head h2 { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); }
 .panel-head p { margin: 3px 0 0; font-size: 11.5px; color: var(--ink-soft); }
 
-.metric-toggle { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.metric-toggle { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
 .metric-toggle button {
   border: none; background: var(--surface); color: var(--ink-soft); font-family: inherit;
   padding: 6px 12px; font-size: 12px; cursor: pointer;
+  white-space: nowrap;
 }
 .metric-toggle button.active { background: var(--primary); color: #fff; }
+@media (max-width: 640px) {
+  .panel-head { padding: 12px 14px; }
+  .panel-head > div:first-child { flex: 1 1 100%; }
+  .metric-toggle { width: 100%; }
+  .metric-toggle button { flex: 1; }
+}
 
 .chart-grid {
   display: grid;
@@ -1523,11 +1570,33 @@ onMounted(async () => {
 @media (max-width: 900px) { .pie-box { height: 260px; } }
 @media (max-width: 640px) { .pie-box { height: 240px; padding: 8px 8px 12px; } }
 
-.chart-box { position: relative; height: 320px; padding: 16px 18px; }
-@media (max-width: 640px) { .chart-box { height: 280px; padding: 10px 8px; } }
+.chart-box {
+  position: relative;
+  height: 320px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+/* Long Thai category labels on the y-axis need real room to draw without
+   overlapping or getting clipped; below that width the chart keeps its
+   natural size and the box scrolls horizontally instead of squeezing it. */
+.chart-scroll { position: relative; height: 100%; min-width: 100%; }
+@media (max-width: 640px) {
+  .chart-box { height: 280px; padding: 10px 8px; }
+  .chart-scroll { min-width: 560px; }
+}
+@media (max-width: 360px) {
+  .chart-box { height: 240px; }
+  .chart-scroll { min-width: 520px; }
+  .pie-box { height: 220px; }
+}
 
 .panel--table :deep(.q-table__container) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .panel--table :deep(table) { min-width: 560px; }
+@media (max-width: 640px) {
+  .panel--table :deep(table) { min-width: 480px; }
+}
 .panel--table :deep(.q-table__top) { padding: 12px 18px; border-bottom: 1px solid var(--line-soft); }
 .panel--table :deep(thead th) {
   background: var(--paper); color: var(--ink-soft); font-size: 11px;
