@@ -37,11 +37,65 @@
       </div>
       <div class="filter-field" :class="{ disabled: activeView.noDateFilter }">
         <label>เวลาเริ่ม</label>
-        <q-input v-model="timeStart" type="time" step="1" dense borderless class="filter-input filter-input--time" />
+        <q-input
+          v-model="timeStart"
+          type="time"
+          step="1"
+          readonly
+          dense
+          borderless
+          placeholder="--:--:--"
+          class="filter-input filter-input--time"
+        >
+          <template #append>
+            <q-btn round dense flat icon="schedule" size="sm" @click.stop>
+              <q-popup-proxy
+                cover
+                transition-show="scale"
+                transition-hide="scale"
+                @before-show="timeStartDraft = timeStart || '00:00:00'"
+              >
+                <q-time v-model="timeStartDraft" format24h with-seconds>
+                  <div class="row items-center justify-end q-gutter-sm">
+                    <q-btn label="ล้าง" flat dense color="negative" v-close-popup @click="timeStart = ''" />
+                    <q-btn label="ตกลง" flat dense color="primary" v-close-popup @click="timeStart = timeStartDraft" />
+                  </div>
+                </q-time>
+              </q-popup-proxy>
+            </q-btn>
+          </template>
+        </q-input>
       </div>
       <div class="filter-field" :class="{ disabled: activeView.noDateFilter }">
         <label>เวลาสิ้นสุด</label>
-        <q-input v-model="timeEnd" type="time" step="1" dense borderless class="filter-input filter-input--time" />
+        <q-input
+          v-model="timeEnd"
+          type="time"
+          step="1"
+          readonly
+          dense
+          borderless
+          placeholder="--:--:--"
+          class="filter-input filter-input--time"
+        >
+          <template #append>
+            <q-btn round dense flat icon="schedule" size="sm" @click.stop>
+              <q-popup-proxy
+                cover
+                transition-show="scale"
+                transition-hide="scale"
+                @before-show="timeEndDraft = timeEnd || nowTimeStr()"
+              >
+                <q-time v-model="timeEndDraft" format24h with-seconds>
+                  <div class="row items-center justify-end q-gutter-sm">
+                    <q-btn label="ล้าง" flat dense color="negative" v-close-popup @click="timeEnd = ''" />
+                    <q-btn label="ตกลง" flat dense color="primary" v-close-popup @click="timeEnd = timeEndDraft" />
+                  </div>
+                </q-time>
+              </q-popup-proxy>
+            </q-btn>
+          </template>
+        </q-input>
       </div>
       <div class="filter-divider"></div>
       <div class="preset-group">
@@ -56,14 +110,69 @@
           <q-icon name="mdi-refresh" size="16px" :class="{ spin: loading }" />
           รีเฟรช
         </button>
-        <button class="action-btn" @click="exportCsv">
-          <q-icon name="mdi-tray-arrow-down" size="16px" />
-          CSV
-        </button>
-        <button class="action-btn" @click="exportExcel">
-          <q-icon name="mdi-file-excel-outline" size="16px" />
-          Excel
-        </button>
+
+        <q-btn-dropdown
+          class="action-btn action-btn--dropdown"
+          no-caps
+          flat
+          dense
+          :disable="exporting"
+        >
+          <template #label>
+            <q-icon name="mdi-tray-arrow-down" size="16px" class="q-mr-xs" :class="{ spin: exporting }" />
+            CSV
+          </template>
+          <q-list>
+            <q-item clickable v-close-popup @click="exportCsv('current')">
+              <q-item-section>เฉพาะหน้านี้</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="exportCsv('all')">
+              <q-item-section>ทุกหน้า</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+
+        <q-btn-dropdown
+          class="action-btn action-btn--dropdown"
+          no-caps
+          flat
+          dense
+          :disable="exporting"
+        >
+          <template #label>
+            <q-icon name="mdi-file-excel-outline" size="16px" class="q-mr-xs" :class="{ spin: exporting }" />
+            Excel
+          </template>
+          <q-list>
+            <q-item clickable v-close-popup @click="exportExcel('current')">
+              <q-item-section>เฉพาะหน้านี้</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="exportExcel('all')">
+              <q-item-section>ทุกหน้า</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+
+        <q-btn-dropdown
+          class="action-btn action-btn--dropdown"
+          no-caps
+          flat
+          dense
+          :disable="exporting"
+        >
+          <template #label>
+            <q-icon name="mdi-file-pdf-box" size="16px" class="q-mr-xs" :class="{ spin: exporting }" />
+            PDF
+          </template>
+          <q-list>
+            <q-item clickable v-close-popup @click="exportPdf('current')">
+              <q-item-section>เฉพาะหน้านี้</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="exportPdf('all')">
+              <q-item-section>ทุกหน้า</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
       </div>
     </div>
 
@@ -170,7 +279,7 @@
       </q-table>
     </section>
 
-   
+
   </q-page>
 </template>
 
@@ -178,6 +287,8 @@
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx'; // npm install xlsx
+import jsPDF from 'jspdf'; // npm install jspdf
+import html2canvas from 'html2canvas'; // npm install html2canvas
 import { api } from '@/boot/axios';// Quasar's configured axios instance (src/boot/axios.ts)
 
 /* ============================== Types ============================== */
@@ -212,15 +323,30 @@ interface ViewConfig {
   chartTitle: string;
   icon: string;
   kind: ViewKind;
+  /** Label used for the primary/first column (department, ward, coverage type, …) */
+  primaryLabel: string;
   noDateFilter?: boolean;
 }
 
+interface ExportColumn {
+  name: string;
+  label: string;
+  field: string;
+  /** How to aggregate this column in a totals/summary row. Omit for non-numeric columns. */
+  agg?: 'sum' | 'avg';
+}
+
+/** Data for the colored summary banner at the top of a PDF export (OPD/IPD sections only). */
+interface SummaryHeaderData {
+  kindLabel: string;
+  totalIncome: number;
+  totalCash: number;
+  totalReceivable: number;
+  totalVisits: number;
+  totalAdmit?: number;
+}
+
 /* ============================== Small utils ============================== */
-// Real API responses sometimes serialize numeric fields as strings
-// (e.g. occupancyRate: "88.64"). Every place that does math, sorting or
-// .toFixed() on a numeric field now goes through this first so it never
-// throws or silently misbehaves regardless of whether the API sends a
-// number or a numeric string.
 function toNum(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -228,8 +354,11 @@ function toNum(v: unknown): number {
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
 function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function nowTimeStr() {
+  const d = new Date();
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
 
-// seeded PRNG so demo numbers stay stable per view + filter combo
 function seedFromString(str: string) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -278,11 +407,11 @@ function buildDemoRows(view: ViewConfig, filterKey: string): DashboardRow[] {
 
 /* ============================== View config ============================== */
 const VIEWS: ViewConfig[] = [
-  { key: 'dep', endpoint: '/dashboard/dep', dataKey: 'dep', label: 'แผนกผู้ป่วยนอก', sub: 'OPD ตามแผนก', chartTitle: 'ภาพรวมรายแผนก (OPD)', icon: 'mdi-hospital-building', kind: 'opd' },
-  { key: 'pttype', endpoint: '/dashboard/pttype', dataKey: 'Pttype', label: 'สิทธิผู้ป่วยนอก', sub: 'OPD ตามสิทธิการรักษา', chartTitle: 'ภาพรวมตามสิทธิการรักษา (OPD)', icon: 'mdi-card-account-details-outline', kind: 'opd' },
-  { key: 'ipdWard', endpoint: '/dashboard/ipdWard', dataKey: 'IpdWard', label: 'หอผู้ป่วยใน', sub: 'IPD ตามหอผู้ป่วย', chartTitle: 'ภาพรวมรายหอผู้ป่วย (IPD)', icon: 'mdi-bed-outline', kind: 'ipd' },
-  { key: 'ipdPttype', endpoint: '/dashboard/ipdPttype', dataKey: 'IpdPttype', label: 'สิทธิผู้ป่วยใน', sub: 'IPD ตามสิทธิการรักษา', chartTitle: 'ภาพรวมตามสิทธิการรักษา (IPD)', icon: 'mdi-card-account-details-outline', kind: 'ipd' },
-  { key: 'ipdBed', endpoint: '/dashboard/ipdBed', dataKey: 'IpdBed', label: 'เตียงผู้ป่วยใน', sub: 'อัตราครองเตียงปัจจุบัน', chartTitle: 'อัตราครองเตียงรายหอผู้ป่วย', icon: 'mdi-bed', kind: 'bed', noDateFilter: true },
+  { key: 'dep', endpoint: '/dashboard/dep', dataKey: 'dep', label: 'แผนกผู้ป่วยนอก', sub: 'OPD ตามแผนก', chartTitle: 'ภาพรวมรายแผนก (OPD)', icon: 'mdi-hospital-building', kind: 'opd', primaryLabel: 'แผนก' },
+  { key: 'pttype', endpoint: '/dashboard/pttype', dataKey: 'Pttype', label: 'สิทธิผู้ป่วยนอก', sub: 'OPD ตามสิทธิการรักษา', chartTitle: 'ภาพรวมตามสิทธิการรักษา (OPD)', icon: 'mdi-card-account-details-outline', kind: 'opd', primaryLabel: 'สิทธิการรักษา' },
+  { key: 'ipdWard', endpoint: '/dashboard/ipdWard', dataKey: 'IpdWard', label: 'หอผู้ป่วยใน', sub: 'IPD ตามหอผู้ป่วย', chartTitle: 'ภาพรวมรายหอผู้ป่วย (IPD)', icon: 'mdi-bed-outline', kind: 'ipd', primaryLabel: 'แผนก' },
+  { key: 'ipdPttype', endpoint: '/dashboard/ipdPttype', dataKey: 'IpdPttype', label: 'สิทธิผู้ป่วยใน', sub: 'IPD ตามสิทธิการรักษา', chartTitle: 'ภาพรวมตามสิทธิการรักษา (IPD)', icon: 'mdi-card-account-details-outline', kind: 'ipd', primaryLabel: 'สิทธิการรักษา' },
+  { key: 'ipdBed', endpoint: '/dashboard/ipdBed', dataKey: 'IpdBed', label: 'เตียงผู้ป่วยใน', sub: 'อัตราครองเตียงปัจจุบัน', chartTitle: 'อัตราครองเตียงรายหอผู้ป่วย', icon: 'mdi-bed', kind: 'bed', primaryLabel: 'แผนก', noDateFilter: true },
 ];
 
 /* ============================== State ============================== */
@@ -292,9 +421,12 @@ const activeView = computed(() => VIEWS.find((v) => v.key === activeViewKey.valu
 const datePicker = ref('');
 const timeStart = ref('');
 const timeEnd = ref('');
+const timeStartDraft = ref('00:00:00');
+const timeEndDraft = ref(nowTimeStr());
 
 const rowsCache = reactive<Record<string, DashboardRow[]>>({});
 const loading = ref(false);
+const exporting = ref(false);
 const connected = ref<boolean | null>(null);
 const lastUpdated = ref<Date | null>(null);
 const metric = ref<'count' | 'income'>('count');
@@ -306,25 +438,17 @@ function filterKeyFor(view: ViewConfig) {
   return view.noDateFilter ? 'nofilter' : `${datePicker.value}|${timeStart.value}|${timeEnd.value}`;
 }
 
-// Backends often wrap the array in an extra envelope that doesn't match
-// what we originally assumed (e.g. { data: { IpdBed: [...] } }, a
-// differently-cased key, or the array sent directly with no wrapper at
-// all). Rather than hard-failing on one exact shape, walk the likely
-// spots and return the first array we find.
 function extractRows(payload: unknown, dataKey: string): DashboardRow[] | null {
   if (Array.isArray(payload)) return payload as DashboardRow[];
   if (!payload || typeof payload !== 'object') return null;
 
   const obj = payload as Record<string, unknown>;
 
-  // exact key match
   if (Array.isArray(obj[dataKey])) return obj[dataKey] as DashboardRow[];
 
-  // case-insensitive key match at this level
   const ciKey = Object.keys(obj).find((k) => k.toLowerCase() === dataKey.toLowerCase());
   if (ciKey && Array.isArray(obj[ciKey])) return obj[ciKey] as DashboardRow[];
 
-  // common one-level wrappers: { data: {...} }, { result: {...} }, { payload: {...} }
   for (const wrapperKey of ['data', 'result', 'payload', 'items', 'rows']) {
     const inner = obj[wrapperKey];
     if (Array.isArray(inner)) return inner as DashboardRow[];
@@ -334,7 +458,6 @@ function extractRows(payload: unknown, dataKey: string): DashboardRow[] | null {
     }
   }
 
-  // last resort: the first array value found anywhere on this object
   const anyArrayKey = Object.keys(obj).find((k) => Array.isArray(obj[k]));
   if (anyArrayKey) return obj[anyArrayKey] as DashboardRow[];
 
@@ -345,21 +468,16 @@ async function fetchView(view: ViewConfig): Promise<DashboardRow[]> {
   const params: Record<string, string> = {};
   if (!view.noDateFilter) {
     if (datePicker.value) params.datePicker = datePicker.value;
-    if (timeStart.value) params.timeStart = timeStart.value;
-    if (timeEnd.value) params.timeEnd = timeEnd.value;
+    params.timeStart = timeStart.value || '00:00:00';
+    params.timeEnd = timeEnd.value || '23:59:59';
   }
   try {
     const res = await api.get(view.endpoint, { params, timeout: 4000 });
-    console.log(`[dashboard] ${view.endpoint} raw response (copy this line):`, JSON.stringify(res.data));
-    console.log(`[dashboard] ${view.endpoint} typeof res.data:`, typeof res.data, Array.isArray(res.data));
     const rows = extractRows(res.data, view.dataKey);
-    console.log(`[dashboard] ${view.endpoint} extracted rows:`, rows);
     if (!Array.isArray(rows)) throw new Error('unexpected response shape');
     connected.value = true;
     return rows;
   } catch (err) {
-    // Surface the real reason instead of silently falling back to demo
-    // data — otherwise a failing request looks identical to "no API yet".
     console.error(`[dashboard] ${view.endpoint} failed, showing demo data:`, err);
     connected.value = false;
     return buildDemoRows(view, filterKeyFor(view));
@@ -377,6 +495,13 @@ async function loadCurrentView() {
   }
 }
 
+async function getRowsForView(view: ViewConfig): Promise<DashboardRow[]> {
+  if (rowsCache[view.key]) return rowsCache[view.key]!;
+  const rows = await fetchView(view);
+  rowsCache[view.key] = rows;
+  return rows;
+}
+
 function switchView(key: ViewKey) {
   activeViewKey.value = key;
   search.value = '';
@@ -388,8 +513,6 @@ function clearFilters() {
   datePicker.value = '';
   timeStart.value = '';
   timeEnd.value = '';
-  // the watcher below only fires on an actual change — if the fields were
-  // already empty, force a reload so "clear" still refreshes the view.
   if (wasEmpty) void loadCurrentView();
 }
 
@@ -398,9 +521,6 @@ watch([datePicker, timeStart, timeEnd], () => {
 });
 
 /* ============================== KPI cards ============================== */
-// Raw numeric targets — kept separate from display formatting so the
-// animation below can tween from 0 up to each value instead of the UI
-// just popping in a pre-formatted string.
 interface KpiTarget { label: string; value: number; decimals: number; unit: string; icon: string; color: string }
 
 const kpiTargets = computed<KpiTarget[]>(() => {
@@ -440,9 +560,6 @@ const kpiTargets = computed<KpiTarget[]>(() => {
   ];
 });
 
-// Animated display values: every time the targets change (new data loads
-// or the view is switched), each number counts up from 0 to its target
-// instead of just appearing.
 interface AnimatedKpi { label: string; display: string; unit: string; icon: string; color: string }
 const animatedKpis = ref<AnimatedKpi[]>([]);
 let kpiRafId: number | null = null;
@@ -457,7 +574,7 @@ function animateKpis(targets: KpiTarget[]) {
   const startTime = performance.now();
   function step(now: number) {
     const t = Math.min(1, (now - startTime) / duration);
-    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    const eased = 1 - Math.pow(1 - t, 3);
     animatedKpis.value = targets.map((k) => ({
       label: k.label,
       unit: k.unit,
@@ -477,34 +594,53 @@ onBeforeUnmount(() => { if (kpiRafId !== null) cancelAnimationFrame(kpiRafId); }
 const columns = computed(() => {
   if (activeView.value.key === 'ipdBed') {
     return [
-      { name: 'wardName', label: 'หอผู้ป่วย', field: 'wardName', align: 'left' as const, sortable: true },
+      { name: 'wardName', label: activeView.value.primaryLabel, field: 'wardName', align: 'left' as const, sortable: true },
       { name: 'totalBeds', label: 'เตียงทั้งหมด', field: 'totalBeds', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
-      { name: 'currentAdmit', label: 'ครองเตียง', field: 'currentAdmit', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
-      { name: 'availableBeds', label: 'ว่าง', field: 'availableBeds', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
-      { name: 'occupancyRate', label: 'อัตราครองเตียง', field: 'occupancyRate', align: 'right' as const, sortable: true, sort: (a: unknown, b: unknown) => toNum(a) - toNum(b) },
+      { name: 'currentAdmit', label: 'ผู้ป่วยนอนปัจจุบัน', field: 'currentAdmit', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+      { name: 'availableBeds', label: 'เตียงว่างรวม', field: 'availableBeds', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+      { name: 'occupancyRate', label: 'อัตราการครองเตียงรวม', field: 'occupancyRate', align: 'right' as const, sortable: true, sort: (a: unknown, b: unknown) => toNum(a) - toNum(b) },
     ];
   }
   const cols = [
-    { name: 'nameTitle', label: 'ชื่อ', field: 'nameTitle', align: 'left' as const, sortable: true },
-    { name: 'hnCount', label: 'HN', field: 'hnCount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+    { name: 'nameTitle', label: activeView.value.primaryLabel, field: 'nameTitle', align: 'left' as const, sortable: true },
+    { name: 'hnCount', label: 'คน', field: 'hnCount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
   ];
   if (activeView.value.kind === 'opd') {
-    cols.push({ name: 'vnCount', label: 'VN', field: 'vnCount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') });
+    cols.push({ name: 'vnCount', label: 'ครั้ง', field: 'vnCount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') });
   }
   cols.push(
-    { name: 'anCount', label: 'AN', field: 'anCount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
-    { name: 'income', label: 'รายได้ (บาท)', field: 'income', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
-    { name: 'billAmount', label: 'ยอดเรียกเก็บ (บาท)', field: 'billAmount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
-    { name: 'ucMoney', label: 'ส่วนต่าง/UC (บาท)', field: 'ucMoney', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+    { name: 'anCount', label: 'Admit', field: 'anCount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+    { name: 'income', label: 'ค่าใช้จ่ายใน HIS', field: 'income', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+    { name: 'billAmount', label: 'ยอดเงินสด', field: 'billAmount', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
+    { name: 'ucMoney', label: 'ลูกหนี้รอเรียกเก็บ', field: 'ucMoney', align: 'right' as const, sortable: true, format: (v: unknown) => toNum(v).toLocaleString('th-TH') },
   );
   return cols;
 });
 
-// q-table needs a unique key per row. IpdBedRow has no `nameTitle` field
-// (it has wardCode/wardName instead), so a single hardcoded key name breaks
-// row identity for that view — every row resolves to the same undefined
-// key, and Vue ends up reusing/mixing up rendered rows. Pick the field that
-// actually exists for the active view instead.
+function columnsForView(view: ViewConfig): ExportColumn[] {
+  if (view.key === 'ipdBed') {
+    return [
+      { name: 'wardName', label: view.primaryLabel, field: 'wardName' },
+      { name: 'totalBeds', label: 'เตียงทั้งหมด', field: 'totalBeds', agg: 'sum' },
+      { name: 'currentAdmit', label: 'ผู้ป่วยนอนปัจจุบัน', field: 'currentAdmit', agg: 'sum' },
+      { name: 'availableBeds', label: 'เตียงว่างรวม', field: 'availableBeds', agg: 'sum' },
+      { name: 'occupancyRate', label: 'อัตราการครองเตียงรวม', field: 'occupancyRate', agg: 'avg' },
+    ];
+  }
+  const cols: ExportColumn[] = [
+    { name: 'nameTitle', label: view.primaryLabel, field: 'nameTitle' },
+    { name: 'hnCount', label: 'คน', field: 'hnCount', agg: 'sum' },
+  ];
+  if (view.kind === 'opd') cols.push({ name: 'vnCount', label: 'ครั้ง', field: 'vnCount', agg: 'sum' });
+  cols.push(
+    { name: 'anCount', label: 'Admit', field: 'anCount', agg: 'sum' },
+    { name: 'income', label: 'ค่าใช้จ่ายใน HIS', field: 'income', agg: 'sum' },
+    { name: 'billAmount', label: 'ยอดเงินสด', field: 'billAmount', agg: 'sum' },
+    { name: 'ucMoney', label: 'ลูกหนี้รอเรียกเก็บ', field: 'ucMoney', agg: 'sum' },
+  );
+  return cols;
+}
+
 function rowKeyFn(row: DashboardRow) {
   if (activeView.value.key === 'ipdBed') return (row as IpdBedRow).wardCode;
   return (row as DashboardStatRow).nameTitle;
@@ -600,8 +736,6 @@ watch(chartData, buildChart, { deep: true });
 const pieCanvasRef = ref<HTMLCanvasElement | null>(null);
 let pieChart: Chart | null = null;
 
-// A distinct categorical palette for pie slices, separate from the
-// severity-driven COLOR_MAP used elsewhere (ok/warn/crit/primary).
 const PIE_PALETTE = ['#1F5D50', '#C68A2E', '#3D7A54', '#6B5B95', '#B8452F', '#2E6E8E', '#8C6239'];
 const PIE_OTHER_COLOR = '#9AA79E';
 
@@ -673,65 +807,479 @@ watch(pieData, buildPieChart, { deep: true });
 onBeforeUnmount(() => pieChart?.destroy());
 onBeforeUnmount(() => chart?.destroy());
 
-/* ============================== CSV export ============================== */
-function exportCsv() {
-  const cols = columns.value;
-  const rows = currentRows.value;
+/* ============================== Export (CSV / Excel) ============================== */
+type ExportScope = 'current' | 'all';
+
+const TEXT_FIELDS = new Set(['nameTitle', 'wardName', 'wardCode']);
+
+function csvEscape(v: unknown) {
+  const s = String(v ?? '').replace(/"/g, '""');
+  return /[",\n]/.test(s) ? `"${s}"` : s;
+}
+
+function rowsToCsvBlock(cols: ExportColumn[], rows: DashboardRow[]) {
   const header = cols.map((c) => c.label).join(',');
-  const lines = rows.map((r) =>
-    cols
-      .map((c) => {
-        const v = (r as Record<string, unknown>)[c.field as string] ?? '';
-        const s = String(v).replace(/"/g, '""');
-        return /[",\n]/.test(s) ? `"${s}"` : s;
-      })
-      .join(','),
-  );
-  const csv = '\uFEFF' + [header, ...lines].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const lines = rows.map((r) => cols.map((c) => csvEscape((r as Record<string, unknown>)[c.field])).join(','));
+  return [header, ...lines].join('\n');
+}
+
+function downloadTextFile(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${activeView.value.key}_${datePicker.value || todayStr()}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-// Field names that hold text, not numbers — everything else in a row gets
-// written to the sheet as a real number so totals/sorting/filtering work
-// natively in Excel instead of landing as text.
-const TEXT_FIELDS = new Set(['nameTitle', 'wardName', 'wardCode']);
+async function exportCsv(scope: ExportScope = 'current') {
+  if (scope === 'current') {
+    const csv = '﻿' + rowsToCsvBlock(columnsForView(activeView.value), currentRows.value);
+    downloadTextFile(csv, `${activeView.value.key}_${datePicker.value || todayStr()}.csv`, 'text/csv;charset=utf-8;');
+    return;
+  }
 
-function exportExcel() {
-  const cols = columns.value;
-  const rows = currentRows.value;
+  exporting.value = true;
+  try {
+    const blocks: string[] = [];
+    for (const view of VIEWS) {
+      const rows = await getRowsForView(view);
+      blocks.push(`# ${view.label}`);
+      blocks.push(rowsToCsvBlock(columnsForView(view), rows));
+      blocks.push('');
+    }
+    const csv = '﻿' + blocks.join('\n');
+    downloadTextFile(csv, `dashboard_all_${datePicker.value || todayStr()}.csv`, 'text/csv;charset=utf-8;');
+  } finally {
+    exporting.value = false;
+  }
+}
 
-  const data = rows.map((r) => {
+function sheetDataForView(view: ViewConfig, rows: DashboardRow[]) {
+  const cols = columnsForView(view);
+  return rows.map((r) => {
     const record = r as Record<string, unknown>;
     const obj: Record<string, string | number> = {};
     cols.forEach((c) => {
-      const field = c.field as string;
-      const raw = record[field];
+      const raw = record[c.field];
       obj[c.label] = TEXT_FIELDS.has(c.name) ? String(raw ?? '') : toNum(raw);
     });
     return obj;
   });
+}
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  // give each column a sane width instead of Excel's cramped default
-  worksheet['!cols'] = cols.map((c) => ({ wch: Math.max(c.label.length + 2, 10) }));
+async function exportExcel(scope: ExportScope = 'current') {
+  if (scope === 'current') {
+    const worksheet = XLSX.utils.json_to_sheet(sheetDataForView(activeView.value, currentRows.value));
+    worksheet['!cols'] = columnsForView(activeView.value).map((c) => ({ wch: Math.max(c.label.length + 2, 10) }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, activeView.value.label.slice(0, 31));
+    XLSX.writeFile(workbook, `${activeView.value.key}_${datePicker.value || todayStr()}.xlsx`);
+    return;
+  }
 
-  const workbook = XLSX.utils.book_new();
-  const sheetName = activeView.value.label.slice(0, 31); // Excel sheet-name limit
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  XLSX.writeFile(workbook, `${activeView.value.key}_${datePicker.value || todayStr()}.xlsx`);
+  exporting.value = true;
+  try {
+    const workbook = XLSX.utils.book_new();
+    for (const view of VIEWS) {
+      const rows = await getRowsForView(view);
+      const worksheet = XLSX.utils.json_to_sheet(sheetDataForView(view, rows));
+      worksheet['!cols'] = columnsForView(view).map((c) => ({ wch: Math.max(c.label.length + 2, 10) }));
+      XLSX.utils.book_append_sheet(workbook, worksheet, view.label.slice(0, 31));
+    }
+    XLSX.writeFile(workbook, `dashboard_all_${datePicker.value || todayStr()}.xlsx`);
+  } finally {
+    exporting.value = false;
+  }
+}
+
+/* ============================== Export (PDF) ============================== */
+function escapeHtml(str: unknown): string {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const PDF_THEME = {
+  ink: '#14231F',
+  inkSoft: '#5B6B63',
+  inkFaint: '#8B978F',
+  primary: '#1F5D50',
+  primarySoft: '#E3ECE8',
+  line: '#DCE2DE',
+  lineSoft: '#EEF1EF',
+  zebra: '#F5F7F5',
+  font: "'IBM Plex Sans Thai', -apple-system, 'Segoe UI', sans-serif",
+  mono: "'IBM Plex Mono', ui-monospace, monospace",
+  // Summary banner
+  bannerBarBg: '#EAF2FB',
+  badgeBg: '#2F8FD1',
+  statIncome: { bg: '#DCEEDF', text: '#1F5D3F' },
+  statCash: { bg: '#FBF3D1', text: '#8A6D12' },
+  statReceivable: { bg: '#D9F0EC', text: '#1B6E63' },
+  statVisits: { bg: '#DCEAF9', text: '#1D5A96' },
+};
+
+const HOSPITAL_NAME = 'โรงพยาบาลปะเหลียน';
+
+/** Sums the numbers a PDF summary banner needs. Returns undefined for bed-occupancy views, which don't fit this shape. */
+function buildSummaryData(view: ViewConfig, rows: DashboardRow[]): SummaryHeaderData | undefined {
+  if (view.key === 'ipdBed') return undefined;
+  const statRows = rows as DashboardStatRow[];
+  return {
+    kindLabel: view.kind === 'opd' ? 'ผู้ป่วยนอก' : 'ผู้ป่วยใน',
+    totalIncome: statRows.reduce((s, r) => s + toNum(r.income), 0),
+    totalCash: statRows.reduce((s, r) => s + toNum(r.billAmount), 0),
+    totalReceivable: statRows.reduce((s, r) => s + toNum(r.ucMoney), 0),
+    totalVisits: statRows.reduce((s, r) => s + toNum(r.hnCount), 0),
+    totalAdmit: view.kind === 'ipd' ? statRows.reduce((s, r) => s + toNum(r.anCount), 0) : undefined,
+  };
+}
+
+/** Builds one report section: a title bar + a styled table with a totals row. */
+function buildPdfSectionHtml(view: ViewConfig, rows: DashboardRow[]): string {
+  const cols = columnsForView(view);
+  const t = PDF_THEME;
+
+  const headerCells = cols
+    .map(
+      (c, i) =>
+        `<th style="padding:8px 12px;background:${t.primary};color:#ffffff;font-size:10.5px;font-weight:600;
+          text-align:${TEXT_FIELDS.has(c.name) ? 'left' : 'right'};white-space:nowrap;
+          ${i === 0 ? `border-top-left-radius:6px;` : ''}${i === cols.length - 1 ? `border-top-right-radius:6px;` : ''}">
+          ${escapeHtml(c.label)}
+        </th>`,
+    )
+    .join('');
+
+  const bodyRows = rows
+    .map((r, rowIdx) => {
+      const record = r as Record<string, unknown>;
+      const zebra = rowIdx % 2 === 1 ? `background:${t.zebra};` : '';
+      const cells = cols
+        .map((c) => {
+          const raw = record[c.field];
+          const val = TEXT_FIELDS.has(c.name) ? escapeHtml(raw) : toNum(raw).toLocaleString('th-TH');
+          return `<td style="padding:6px 12px;border-bottom:1px solid ${t.lineSoft};font-size:11px;color:${t.ink};
+            font-family:${TEXT_FIELDS.has(c.name) ? t.font : t.mono};
+            text-align:${TEXT_FIELDS.has(c.name) ? 'left' : 'right'};white-space:nowrap;">${val}</td>`;
+        })
+        .join('');
+      return `<tr style="${zebra}">${cells}</tr>`;
+    })
+    .join('');
+
+  // Totals / summary row — sums numeric columns, averages rate-style ones.
+  const hasAgg = cols.some((c) => c.agg);
+  const totalCells = hasAgg
+    ? cols
+        .map((c, i) => {
+          if (TEXT_FIELDS.has(c.name)) {
+            return `<td style="padding:8px 12px;font-size:11px;font-weight:700;color:${t.primary};
+              border-top:1.5px solid ${t.primary};text-align:left;">${i === 0 ? 'รวมทั้งหมด' : ''}</td>`;
+          }
+          if (!c.agg) {
+            return `<td style="padding:8px 12px;border-top:1.5px solid ${t.primary};"></td>`;
+          }
+          const values = rows.map((r) => toNum((r as Record<string, unknown>)[c.field]));
+          const sum = values.reduce((s, v) => s + v, 0);
+          const display = c.agg === 'avg'
+            ? `${(values.length ? sum / values.length : 0).toFixed(1)}%`
+            : sum.toLocaleString('th-TH');
+          return `<td style="padding:8px 12px;font-size:11.5px;font-weight:700;color:${t.primary};
+            border-top:1.5px solid ${t.primary};text-align:right;font-family:${t.mono};">${display}</td>`;
+        })
+        .join('')
+    : '';
+
+  const summary = buildSummaryData(view, rows);
+  const sectionTitleHtml = summary
+    ? buildSummaryBannerHtml(view.label, summary)
+    : `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+        <span style="width:4px;height:16px;background:${t.primary};border-radius:2px;display:inline-block;"></span>
+        <span style="font-size:14px;font-weight:700;color:${t.ink};">${escapeHtml(view.label)}</span>
+        <span style="font-size:10.5px;color:${t.inkFaint};margin-left:2px;">${rows.length.toLocaleString('th-TH')} รายการ</span>
+      </div>
+    `;
+
+  return `
+    <div class="pdf-block" style="margin-bottom:22px;">
+      ${sectionTitleHtml}
+      <table style="border-collapse:collapse;width:100%;font-family:${t.font};border:1px solid ${t.line};border-radius:6px;overflow:hidden;">
+        <thead><tr>${headerCells}</tr></thead>
+        <tbody>${bodyRows}${totalCells ? `<tr>${totalCells}</tr>` : ''}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function toDottedTime(hms: string): string {
+  const [h, m] = hms.split(':');
+  return `${h}.${m}`;
+}
+
+function statRowHtml(label: string, value: number | null, colors: { bg: string; text: string }): string {
+  const t = PDF_THEME;
+  return `
+    <div style="background:${colors.bg};color:${colors.text};font-size:11px;font-weight:700;
+      padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex:1;">
+      <span>${escapeHtml(label)}</span>
+      ${value !== null ? `<span style="font-family:${t.mono};white-space:nowrap;">${value.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</span>` : ''}
+    </div>
+  `;
+}
+
+/** Builds the "ข้อมูล...ของโรงพยาบาลปะเหลียน" summary banner: logo bar + date/time note + colored stat rows. */
+function buildSummaryBannerHtml(reportTitle: string, summary: SummaryHeaderData): string {
+  const t = PDF_THEME;
+  const dateObj = datePicker.value ? new Date(datePicker.value) : new Date();
+  const dateLongThai = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+    + (datePicker.value ? '' : ' (ข้อมูลทั้งหมด)');
+  // When no end time is picked: if the selected date is today (or no date
+  // filter at all), the day isn't over yet, so show up to *now* rather than
+  // a blanket 23.59. A past date, though, is a day that's already complete.
+  const isToday = !datePicker.value || datePicker.value === todayStr();
+  const effectiveTimeEnd = timeEnd.value || (isToday ? nowTimeStr() : '23:59:59');
+  const timeRangeDotted = `${toDottedTime(timeStart.value || '00:00:00')} - ${toDottedTime(effectiveTimeEnd)} น.`;
+  const noteLine = `*หมายเหตุ ข้อมูลหลังเวลา ${toDottedTime(effectiveTimeEnd)} น. อยู่ในระหว่างการให้บริการ`;
+  const visitsLabel = summary.totalAdmit != null
+    ? `ผู้รับบริการรวมทั้งสิ้น ${summary.totalVisits.toLocaleString('th-TH')} ราย  ·  ADMIT ${summary.totalAdmit.toLocaleString('th-TH')} ราย`
+    : `ผู้รับบริการรวมทั้งสิ้น ${summary.totalVisits.toLocaleString('th-TH')} ราย`;
+
+  return `
+    <div class="pdf-block" style="margin-bottom:18px;border:1px solid ${t.line};border-radius:10px;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:10px;background:${t.bannerBarBg};padding:10px 16px;">
+        <div style="width:34px;height:34px;border-radius:50%;background:#ffffff;border:1.5px solid ${t.primary};
+          display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="color:${t.primary};font-size:16px;line-height:1;">✚</span>
+        </div>
+        <div style="flex:1;font-size:13px;font-weight:700;color:${t.ink};">
+          ข้อมูล${escapeHtml(reportTitle)}ของ${escapeHtml(HOSPITAL_NAME)}
+        </div>
+        <span style="background:${t.badgeBg};color:#ffffff;font-size:10.5px;font-weight:600;padding:4px 12px;
+          border-radius:14px;white-space:nowrap;">${escapeHtml(summary.kindLabel)}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;padding:12px 16px;font-size:10.5px;color:${t.inkSoft};line-height:1.9;">
+          <div>ประจำวันที่ ${escapeHtml(dateLongThai)}</div>
+          <div>ช่วงเวลา ${escapeHtml(timeRangeDotted)}</div>
+          ${noteLine ? `<div style="font-style:italic;color:${t.inkFaint};margin-top:2px;">${escapeHtml(noteLine)}</div>` : ''}
+        </div>
+        <div style="width:280px;display:flex;flex-direction:column;">
+          ${statRowHtml('ค่าใช้จ่ายใน HIS', summary.totalIncome, t.statIncome)}
+          ${statRowHtml('ยอดเงินสดรวม', summary.totalCash, t.statCash)}
+          ${statRowHtml('ลูกหนี้รอเรียกเก็บ', summary.totalReceivable, t.statReceivable)}
+          ${statRowHtml(visitsLabel, null, t.statVisits)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderHtmlToPdf(html: string, filename: string, reportTitle: string): Promise<void> {
+  const t = PDF_THEME;
+  const generatedAt = new Date();
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-99999px';
+  container.style.top = '0';
+  container.style.width = '780px';
+  container.style.padding = '0';
+  container.style.background = '#ffffff';
+  const DOM_WIDTH = 780;
+
+  container.innerHTML = `
+    <div style="font-family:${t.font};width:${DOM_WIDTH}px;padding:30px 34px 26px;box-sizing:border-box;background:#ffffff;">
+
+      ${html}
+
+      <!-- Report footer note -->
+      <div class="pdf-block" style="margin-top:8px;padding-top:12px;border-top:1px solid ${t.lineSoft};display:flex;justify-content:space-between;">
+        <span style="font-size:9.5px;color:${t.inkFaint};">
+          สร้างเมื่อ ${generatedAt.toLocaleDateString('th-TH', { day: '2-digit', month: 'long', year: 'numeric' })}
+          เวลา ${generatedAt.toLocaleTimeString('th-TH')}
+        </span>
+        <span style="font-size:9.5px;color:${t.inkFaint};">ระบบวิเคราะห์ข้อมูลโรงพยาบาล</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(container);
+
+  try {
+    // รอให้ฟอนต์โหลดเสร็จก่อน capture กันปัญหาฟอนต์ไทยไม่ขึ้นในรอบแรก
+    await document.fonts.ready;
+
+    const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff' });
+    const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 22;
+    const footerZone = 26; // reserved space at the bottom of every page for the page-number bar
+
+    const usableWidth = pageWidth - margin * 2;
+    const usablePageHeightPt = pageHeight - margin * 2 - footerZone;
+
+    // DOM px → PDF pt conversion, and the matching canvas-pixel scale factor.
+    const ptPerDomPx = usableWidth / DOM_WIDTH;
+    const domTotalHeight = container.scrollHeight;
+    const canvasScale = canvas.height / domTotalHeight;
+    const usablePageHeightDomPx = usablePageHeightPt / ptPerDomPx;
+
+    // Collect safe break points (in DOM px) so pages never cut a table row —
+    // or the header/footer block — in half. A candidate is the *top* of a
+    // row/block: cutting exactly there means nothing of it renders on the
+    // current page, so the whole row/block starts fresh on the next one.
+    const containerTop = container.getBoundingClientRect().top;
+    const breakCandidates = Array.from(container.querySelectorAll('tr, .pdf-block'))
+      .map((el) => el.getBoundingClientRect().top - containerTop)
+      .filter((y) => y > 0.5);
+    breakCandidates.push(domTotalHeight);
+    breakCandidates.sort((a, b) => a - b);
+
+    // Each data section (.pdf-block that wraps a <table>) — used so a page
+    // that starts mid-table can repeat that section's title + column header.
+    const sections = Array.from(container.querySelectorAll('.pdf-block'))
+      .filter((el) => el.querySelector('table'))
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        const theadRect = el.querySelector('thead')!.getBoundingClientRect();
+        return {
+          top: rect.top - containerTop,
+          theadBottom: theadRect.bottom - containerTop,
+          bottom: rect.bottom - containerTop,
+        };
+      });
+
+    interface PageSlice { start: number; end: number; repeatHeader?: { top: number; theadBottom: number } }
+    const pageSlices: PageSlice[] = [];
+    let cursor = 0;
+    while (cursor < domTotalHeight - 0.5) {
+      // Is this page starting partway through a table body? If so, reserve
+      // room at the top of the page to repeat that section's title + header row.
+      const midSection = sections.find((s) => cursor > s.theadBottom + 0.5 && cursor < s.bottom - 0.5);
+      const repeatHeaderHeight = midSection ? midSection.theadBottom - midSection.top : 0;
+      const availableDomPx = usablePageHeightDomPx - repeatHeaderHeight;
+
+      const idealEnd = cursor + availableDomPx;
+      let cut = 0;
+      for (const c of breakCandidates) {
+        if (c > cursor + 0.5 && c <= idealEnd) cut = c;
+      }
+      if (!cut) {
+        // No safe break point fits on this page (e.g. one giant row) — fall
+        // back to the next candidate past idealEnd, or the hard limit.
+        const next = breakCandidates.find((c) => c > cursor + 0.5);
+        cut = Math.min(next ?? domTotalHeight, domTotalHeight);
+      }
+      pageSlices.push({
+        start: cursor,
+        end: cut,
+        repeatHeader: midSection ? { top: midSection.top, theadBottom: midSection.theadBottom } : undefined,
+      });
+      cursor = cut;
+    }
+
+    const totalPages = pageSlices.length;
+    const sliceCanvas = document.createElement('canvas');
+    const sliceCtx = sliceCanvas.getContext('2d')!;
+
+    // Crops [domFrom, domTo) out of the master canvas and draws it at (x, yPt)
+    // on the current PDF page, returning the drawn height in pt.
+    function drawCrop(domFrom: number, domTo: number, x: number, yPt: number): number {
+      const sy = domFrom * canvasScale;
+      const sHeight = (domTo - domFrom) * canvasScale;
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = Math.max(1, sHeight);
+      sliceCtx.clearRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      sliceCtx.drawImage(canvas, 0, sy, canvas.width, sHeight, 0, 0, canvas.width, sHeight);
+      const heightPt = (domTo - domFrom) * ptPerDomPx;
+      pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', x, yPt, usableWidth, heightPt);
+      return heightPt;
+    }
+
+    pageSlices.forEach((slice, i) => {
+      if (i > 0) pdf.addPage();
+      let y = margin;
+      if (slice.repeatHeader) {
+        y += drawCrop(slice.repeatHeader.top, slice.repeatHeader.theadBottom, margin, y);
+      }
+      drawCrop(slice.start, slice.end, margin, y);
+    });
+
+    // Footer bar on every page: thin rule + page number + report name.
+    // Rendered as a small image (not pdf.text) because jsPDF's built-in
+    // fonts have no Thai glyphs — native text would come out as garbage.
+    const footerDiv = document.createElement('div');
+    footerDiv.style.position = 'fixed';
+    footerDiv.style.left = '-99999px';
+    footerDiv.style.top = '0';
+    footerDiv.style.width = `${DOM_WIDTH}px`;
+    footerDiv.style.boxSizing = 'border-box';
+    footerDiv.style.padding = '6px 0 0';
+    footerDiv.style.background = '#ffffff';
+    footerDiv.style.fontFamily = t.font;
+    document.body.appendChild(footerDiv);
+
+    try {
+      for (let page = 1; page <= totalPages; page++) {
+        footerDiv.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:9px;color:${t.inkFaint};">${escapeHtml(reportTitle)}</span>
+            <span style="font-size:9px;color:${t.inkFaint};font-family:${t.mono};">หน้า ${page} / ${totalPages}</span>
+          </div>
+        `;
+        // eslint-disable-next-line no-await-in-loop
+        const footerCanvas = await html2canvas(footerDiv, { scale: 2, backgroundColor: '#ffffff' });
+        const footerDomHeight = footerCanvas.height / 2;
+        const footerHeightPt = footerDomHeight * ptPerDomPx;
+
+        pdf.setPage(page);
+        pdf.setDrawColor(220, 226, 222);
+        pdf.setLineWidth(0.75);
+        pdf.line(margin, pageHeight - footerZone + 4, pageWidth - margin, pageHeight - footerZone + 4);
+        pdf.addImage(footerCanvas.toDataURL('image/png'), 'PNG', margin, pageHeight - footerZone + 8, usableWidth, footerHeightPt);
+      }
+    } finally {
+      document.body.removeChild(footerDiv);
+    }
+
+    pdf.save(filename);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+async function exportPdf(scope: ExportScope = 'current') {
+  exporting.value = true;
+  try {
+    if (scope === 'current') {
+      const html = buildPdfSectionHtml(activeView.value, currentRows.value);
+      await renderHtmlToPdf(html, `${activeView.value.key}_${datePicker.value || todayStr()}.pdf`, activeView.value.label);
+      return;
+    }
+
+    let html = '';
+    for (const view of VIEWS) {
+      const rows = await getRowsForView(view);
+      html += buildPdfSectionHtml(view, rows);
+    }
+    await renderHtmlToPdf(html, `dashboard_all_${datePicker.value || todayStr()}.pdf`, 'ภาพรวมทุกหน้า');
+  } catch (err) {
+    console.error('[dashboard] export pdf failed:', err);
+  } finally {
+    exporting.value = false;
+  }
 }
 
 onMounted(async () => {
-  console.log('[dashboard] import.meta.env.VITE_API_URL:', import.meta.env.VITE_API_URL);
-  console.log('[dashboard] api.defaults.baseURL:', api.defaults.baseURL);
   await loadCurrentView();
   buildChart();
   buildPieChart();
@@ -739,15 +1287,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/*
-  Design direction: an "instrument panel" reading, not a SaaS card kit.
-  No shadows, no gradients — flat surfaces separated by hairline rules and a
-  single recurring structural device (a left accent bar) instead of icon
-  chips in colored boxes. All reported numbers render in a monospace face
-  so they read like data read-outs rather than typeset copy; Thai and UI
-  text stay in the humanist sans. Import IBM Plex Mono alongside the Thai
-  sans already used by the table/chart.
-*/
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap');
 
 .dash {
@@ -784,7 +1323,6 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Header ---------- */
 .dash-header {
   position: relative;
   background: var(--surface);
@@ -814,6 +1352,8 @@ onMounted(async () => {
 .dash-header__status {
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
   font-size: 12px;
+  max-width: 100%;
+  word-break: break-word;
 }
 .status-dot { display: none; }
 .status-text { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); }
@@ -821,8 +1361,6 @@ onMounted(async () => {
   content: ''; width: 7px; height: 7px; border-radius: 50%; background: #9FB0A6; flex-shrink: 0;
 }
 .dash-header__status:has(.status-text) .status-dot { display: none; }
-.status-text:has(+ .status-updated) { }
-/* dot color driven by the status modifier on the wrapping dot span kept for API parity */
 .status-dot.is-ok + .status-text::before { background: var(--green); }
 .status-dot.is-warn + .status-text::before { background: var(--amber); }
 .status-updated { color: var(--ink-soft); opacity: 0.75; font-size: 11px; }
@@ -835,7 +1373,6 @@ onMounted(async () => {
   .dash-header h1 { font-size: 19px; }
 }
 
-/* ---------- Filter bar ---------- */
 .filter-bar {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -851,14 +1388,18 @@ onMounted(async () => {
 .filter-field label { font-size: 11px; color: var(--ink-soft); }
 .filter-field.disabled { opacity: 0.35; pointer-events: none; }
 .filter-input { width: 138px; }
-.filter-input--time { width: 108px; }
+.filter-input--time { width: 128px; }
+.filter-input :deep(.q-field__append) { flex-shrink: 0; padding-left: 2px; }
+.filter-input :deep(.q-field__native) { white-space: nowrap; }
+.filter-input--time :deep(.q-btn) { min-height: 24px; min-width: 24px; padding: 0; }
+.filter-input--time :deep(.q-btn .q-icon) { font-size: 16px; }
 .filter-input :deep(.q-field__control) {
   border-bottom: 1px solid var(--line); padding: 0;
 }
 .filter-input :deep(.q-field__control):before,
 .filter-input :deep(.q-field__control):after { display: none; }
 .filter-divider { width: 1px; align-self: stretch; background: var(--line); }
-.preset-group, .action-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.preset-group, .action-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .preset-btn, .action-btn {
   border: 1px solid var(--line);
   background: var(--paper);
@@ -877,21 +1418,26 @@ onMounted(async () => {
 .preset-btn--clear { color: var(--ink-soft); }
 .preset-btn--clear:hover { border-color: var(--red); color: var(--red); }
 .action-btn:disabled { opacity: 0.5; cursor: default; }
+.action-btn--dropdown { padding: 0; }
+.action-btn--dropdown :deep(.q-btn__content) { padding: 7px 12px; font-size: 12.5px; color: var(--ink); }
+.action-btn--dropdown:hover :deep(.q-btn__content) { color: var(--primary); }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
   .filter-bar { gap: 10px 12px; }
   .filter-divider { display: none; }
   .filter-input { width: 128px; }
-  .filter-input--time { width: 92px; }
+  .filter-input--time { width: 108px; }
   .action-group, .preset-group { width: 100%; justify-content: flex-start; }
+  .preset-btn, .action-btn { padding: 9px 14px; font-size: 13px; }
+  .filter-input--time :deep(.q-btn) { min-height: 34px; min-width: 34px; }
+  .filter-input--time :deep(.q-btn .q-icon) { font-size: 18px; }
 }
-@media (max-width: 400px) {
-  .filter-input { width: 118px; }
-  .filter-input--time { width: 84px; }
+@media (max-width: 480px) {
+  .filter-field { flex: 1 1 calc(50% - 8px); min-width: 0; }
+  .filter-input, .filter-input--time { width: 100%; }
 }
 
-/* ---------- Tab strip ---------- */
 .tab-strip {
   display: flex; gap: 4px; overflow-x: auto; margin-bottom: 14px;
   border-bottom: 1px solid var(--line);
@@ -914,7 +1460,6 @@ onMounted(async () => {
 .tab__sub { font-size: 11px; color: inherit; opacity: 0.65; }
 @media (max-width: 640px) { .tab__sub { display: none; } }
 
-/* ---------- Vitals strip (KPIs) ---------- */
 .vitals-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -945,7 +1490,6 @@ onMounted(async () => {
 .vital__unit { font-size: 11.5px; color: var(--ink-soft); font-weight: 500; margin-left: 2px; }
 @media (max-width: 420px) { .vital__value { font-size: 18px; } }
 
-/* ---------- Panels ---------- */
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -982,7 +1526,6 @@ onMounted(async () => {
 .chart-box { position: relative; height: 320px; padding: 16px 18px; }
 @media (max-width: 640px) { .chart-box { height: 280px; padding: 10px 8px; } }
 
-/* ---------- Table ---------- */
 .panel--table :deep(.q-table__container) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .panel--table :deep(table) { min-width: 560px; }
 .panel--table :deep(.q-table__top) { padding: 12px 18px; border-bottom: 1px solid var(--line-soft); }
